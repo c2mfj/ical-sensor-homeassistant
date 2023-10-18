@@ -144,8 +144,7 @@ class ICalSensor(Entity):
                 val.get("end"),
                 str(self._event_number),
                 self.name,
-            )
-
+                )
             self._event_attributes["summary"] = val.get("summary", "unknown")
             self._event_attributes["start"] = val.get("start")
             self._event_attributes["end"] = val.get("end")
@@ -156,6 +155,56 @@ class ICalSensor(Entity):
             ).days
             self._event_attributes["all_day"] = val.get("all_day")
             self._state = f"{name} - {start.strftime('%-d %B %Y')}"
+        if event_list and (self._event_number < len(event_list)):
+            val = event_list[self._event_number]
+            name = val.get("summary", "Unknown")
+            start = val.get("start")
+            end = val.get("end")
+
+            # Calculate the "today" attribute
+            today = 0
+            current_date = datetime.now(start.tzinfo)
+            if start <= current_date <= end:
+                today = 1
+
+            # Calculate the "tomorrow" attribute
+            tomorrow = 0
+            tomorrow_date = current_date + timedelta(days=1)
+            if start <= tomorrow_date < end + timedelta(days=1):
+                tomorrow = 1
+
+            # Update event attributes
+            self._event_attributes["summary"] = val.get("summary", "unknown")
+            self._event_attributes["start"] = start
+            self._event_attributes["end"] = end
+            self._event_attributes["location"] = val.get("location", "")
+            self._event_attributes["description"] = val.get("description", "")
+            self._event_attributes["eta"] = (
+                start - datetime.now(start.tzinfo) + timedelta(days=1)
+            ).days
+            self._event_attributes["all_day"] = val.get("all_day")
+            self._event_attributes["today"] = today
+            self._event_attributes["tomorrow"] = tomorrow
+
+            # Update sensor state
+            self._state = f"{name} - {start.strftime('%-d %B %Y')}"
+            if not val.get("all_day"):
+                self._state += f" {start.strftime('%H:%M')}"
+        elif self._event_number >= len(event_list):
+            # No further events are found in the calendar
+            self._event_attributes = {
+                "summary": None,
+                "description": None,
+                "location": None,
+                "start": None,
+                "end": None,
+                "eta": None,
+                "today": None,
+                "tomorrow": None,
+            }
+            self._state = None
+            self._is_available = None
+
             if not val.get("all_day"):
                 self._state += f" {start.strftime('%H:%M')}"
             # self._is_available = True
